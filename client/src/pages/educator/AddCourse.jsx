@@ -1,14 +1,18 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useContext, useEffect, useRef, useState } from 'react'
 import uniqid from 'uniqid';
 import Quill from 'quill';
 import { assets } from '../../assets/assets';
+import { AppContext } from '../../context/AppContext';
+import { toast } from 'react-toastify';
+import axios from 'axios';
 
 const AddCourse = () => {
 
+  const { backendUrl,getToken} =useContext(AppContext)
 const quillRef=useRef(null)  
 const editorRef=useRef(null) 
 
-const [courseTitle,setCourseTtle]=useState('')
+const [courseTitle,setCourseTitle]=useState('')
 const [coursePrice,setCoursePrice]=useState(0)
 const [discount,setDiscount]=useState(0)
 const [image,setImage]=useState(null)
@@ -17,7 +21,7 @@ const [showPopup,setShowPopup]=useState(false)
 const [currentChapterId,setCurrentChapterId]=useState(null)
 const [lectureDetails,setLectureDetails]=useState(
   {
-    LectureTitle:'',
+    lectureTitle:'',
     lectureDuration:'',
     lectureUrl:'',
     isPreviewFree:false,
@@ -91,7 +95,44 @@ const addLecture=()=>{
 };
 
 const handleSubmit =async (e) => {
-  e.preventDefault()
+  try{
+    e.preventDefault()
+    if(!image){
+
+      toast.error('Thumnail Not selected')
+    }
+
+    const courseData ={
+      courseTitle,
+      courseDescription: quillRef.current.root.innerHTML,
+      coursePrice: Number(coursePrice),
+      discount:Number(discount),
+      courseContent: chapters,
+    }
+    const formData = new FormData()
+    formData.append('courseData',JSON.stringify(courseData))
+    formData.append('image',image)
+
+    const token =await getToken()
+    const {data} =await axios.post(backendUrl  + '/api/educator/add-course',formData,{headers: {Authorization: `Bearer ${token}`} } )
+
+    if(data.success){
+      toast.success(data.message)
+      setCourseTitle('')
+      setCoursePrice(0)
+      setDiscount(0)
+      setImage(null)
+      setChapters([])
+        quillRef.current.root.innerHTML =""
+      
+    } else{
+      toast.error(data.message)
+    }
+  } catch (error){
+    toast.error(error.message)
+
+  }
+  
 };
 
 
@@ -108,7 +149,7 @@ useEffect(()=>{
      <form onSubmit={handleSubmit} className='flex flex-col gap-4 max-w-full text-gray-500' >
       <div className='flex flex-col gap-1'>
         <p>Course Title</p>
-        <input onChange={e=> setCourseTtle(e.target.value)} value={courseTitle}
+        <input onChange={e=> setCourseTitle(e.target.value)} value={courseTitle}
         type='text' placeholder='Type here' className='outline-none md:py-2.5
         py-2 px-3 rounded border border-gray-500' required />
       </div>
@@ -227,7 +268,7 @@ useEffect(()=>{
                 className='mt-1 scale-125'
                 checked={lectureDetails.isPreviewFree}
                 onChange={(e)=> setLectureDetails({...lectureDetails,
-                  isPreviewFree: e.target.value })}
+                  isPreviewFree: e.target.checked })}
                 />
 
                </div>
